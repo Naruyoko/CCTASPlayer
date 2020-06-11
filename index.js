@@ -28,7 +28,10 @@ TAS.setup=function (inputTable){
 }
 TAS.start=function (){
   if (!TAS.table) return;
-  Game.HardReset(2);
+  Game.ShowMenu("options");
+  Game.HardReset();
+  l("promptOption0").click();
+  l("promptOption0").click();
   TAS.time=TAS.now()-1;
   Game.time=TAS.now();
   Game.accumulatedDelay=0;
@@ -39,7 +42,7 @@ TAS.start=function (){
   Game.ShowMenu("stats");
   Game.bakeryNamePrompt();
   l("bakeryNameInput").value="TAS";
-  Game.promptL.children[3].children[0].click();
+  l("promptOption0").click();
 }
 TAS.stop=function (){
   if (!TAS.running){
