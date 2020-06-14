@@ -45,7 +45,7 @@ TAS.setup=function (inputTable){
   TAS.now=TAS.now||Date.now;
   TAS.time=TAS.now();
   Date.now=function (){return TAS.time;};
-  TAS.finalTime=TAS.n(TAS.table[TAS.table.length-1]["time (ms)"]);
+  TAS.finalTime=typeof TAS.finalTime=="number"?TAS.finalTime:TAS.n(TAS.table[TAS.table.length-1]["time (ms)"]);
   if (!TAS.infol&&!l("TASinfo")){
     var versionNumber=l("versionNumber");
     TAS.infol=document.createElement("div");
@@ -178,7 +178,17 @@ TAS.loop=function (lineN,isFinal){
     "Mine":"m",
     "Factory":"F",
     "Bank":"b",
-    "Temple":"t"
+    "Temple":"t",
+    "Wizard tower":"wt",
+    "Shipment":"s",
+    "Alchemy lab":"al",
+    "Portal":"p",
+    "Time machine":"tm",
+    "Antimatter condenser":"ac",
+    "Prism":"P",
+    "Chancemaker":"C",
+    "Fractal engine":"fe",
+    "Javascript console":"jc"
   };
   for (var i of Object.getOwnPropertyNames(buildings)){
     if (!line[buildings[i]]) break;
@@ -216,6 +226,7 @@ TAS.loop=function (lineN,isFinal){
       if (Game.shimmerTypes["golden"].time<=Game.shimmerTypes["golden"].minTime) TAS.warn("error","Golden cookie was spawned too early.");
       var newShimmer=new Game.shimmer("golden");
       newShimmer.force=line["GC buff"];
+      newShimmer.spawnLead=1;
     }
   }
   for (var i=0;i<Game.shimmers.length;i++){
@@ -270,6 +281,7 @@ TAS.tutorial=function (){
     "\ni\tTAS.finalTime=now"+
     "\no\tTAS.finalTime--"+
     "\np\tTAS.finalTime++"+
+    "\nu\tUpdate stats"+
     "\nh\tShow this help"+
     ""
     ,"font-size:24px;color:white;"
@@ -301,6 +313,7 @@ TAS.keypress=function (e){
   if (key=="i") TAS.finalTime=TAS.time-Game.startDate;
   if (key=="o") TAS.finalTime--;
   if (key=="p") TAS.finalTime++;
+  if (key=="u") Game.UpdateMenu();
   if (key=="h") TAS.tutorial();
 }
 window.addEventListener("keypress",TAS.keypress);
