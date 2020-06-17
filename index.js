@@ -1,6 +1,7 @@
 var TAS={};
 TAS.speed=1;
 TAS.running=false;
+TAS.particles=1;
 TAS.n=function (n){
   if (typeof n=="number") return n;
   if (typeof n=="string") return +n.replace(/,/g,"");
@@ -16,6 +17,7 @@ TAS.parseTable=function (inputTable){
     for (var j=0;j<headings.length;j++){
       var cell=cells[j];
       if (cell.indexOf("\n")!=-1) cell=cell.replace(/^"/,"").replace(/"$/,"");
+      if (!isNaN(TAS.n(cell))) cell=TAS.n(cell);
       table[i][headings[j]]=cell;
     }
   }
@@ -45,7 +47,7 @@ TAS.setup=function (inputTable){
   TAS.now=TAS.now||Date.now;
   TAS.time=TAS.now();
   Date.now=function (){return TAS.time;};
-  TAS.finalTime=typeof TAS.finalTime=="number"?TAS.finalTime:TAS.n(TAS.table[TAS.table.length-1]["time (ms)"]);
+  TAS.finalTime=typeof TAS.finalTime=="number"?TAS.finalTime:TAS.table[TAS.table.length-1]["time (ms)"];
   if (!TAS.infol&&!l("TASinfo")){
     var versionNumber=l("versionNumber");
     TAS.infol=document.createElement("div");
@@ -67,6 +69,7 @@ TAS.start=function (){
   Game.startDate=Game.time;
   Game.fullDate=Game.time;
   TAS.running=true;
+  Game.prefs.notifs=1;
   Game.ShowMenu("stats");
   Game.bakeryNamePrompt();
   l("bakeryNameInput").value="Orteil";
@@ -114,10 +117,10 @@ TAS.update=function (){
 }
 TAS.frame=function (){
   var lineN=0;
-  while (TAS.n(TAS.table[lineN]["time (ms)"])<TAS.time-Game.startDate) lineN++;
+  while (TAS.table[lineN]["time (ms)"]<TAS.time-Game.startDate) lineN++;
   var line=TAS.table[lineN];
   var totalClicks=0;
-  for (var i=0;i<=lineN;i++) totalClicks+=TAS.n(TAS.table[i]["clicks more"]);
+  for (var i=0;i<=lineN;i++) totalClicks+=TAS.table[i]["clicks more"];
   if (TAS.time-Game.lastClick>=1000/250&&Game.cookieClicks<totalClicks){
     var x=Game.cookieOriginX;
     var y=Game.cookieOriginY;
@@ -125,23 +128,27 @@ TAS.frame=function (){
     TAS.mouseY=y;
     Game.mouseX=TAS.mouseX;
     Game.mouseY=TAS.mouseY;
+    Game.prefs.particles=Game.prefs.numbers=+(TAS.particles&&(totalClicks-Game.cookieClicks<=25||line["lag?"]=="n"));
     Game.ClickCookie();
+    Game.prefs.particles=Game.prefs.numbers=1;
   }
   /*if (40536<=TAS.time-Game.startDate&&TAS.time-Game.startDate<=40688){
     console.log("Cookies "+Game.cookies);
     console.log("Time "+(TAS.time-Game.startDate));
     console.log("Clicks "+Game.cookieClicks);
   }*/
-  if (TAS.n(line["time (ms)"])==TAS.time-Game.startDate){
+  if (line["time (ms)"]==TAS.time-Game.startDate){
     TAS.loop(lineN,true);
   }else if (line["lag?"]=="n"){
-    if ((TAS.time-Game.startDate-TAS.n(TAS.table[lineN-1]["time (ms)"]))%33==0&&TAS.n(line["time (ms)"])-TAS.time+Game.startDate>=33) TAS.loop(lineN);
+    if ((TAS.time-Game.startDate-TAS.table[lineN-1]["time (ms)"])%33==0&&line["time (ms)"]-TAS.time+Game.startDate>=33) TAS.loop(lineN);
   }else if (TAS.time-Game.time+Game.accumulatedDelay+1000/30>=5000){
-    var bulkLength=TAS.n(line["time (ms)"])-TAS.n(TAS.table[lineN-1]["time (ms)"]);
+    var bulkLength=line["time (ms)"]-TAS.table[lineN-1]["time (ms)"];
     var leastMaxLoopLength=bulkLength/Math.ceil(bulkLength/5000);
     if (TAS.time-Game.time+Game.accumulatedDelay>=leastMaxLoopLength) TAS.loop(lineN);
   }
   if (TAS.time-Game.startDate==TAS.finalTime){
+    Game.ShowMenu("stats");
+    Game.ShowMenu("stats");
     var logText="";
     var logArgs=[];
     for (var i=0;i<TAS.warnings.length;i++){
@@ -190,13 +197,20 @@ TAS.loop=function (lineN,isFinal){
     "Fractal engine":"fe",
     "Javascript console":"jc"
   };
+  var sells=[];
+  var buys=[];
   for (var i of Object.getOwnPropertyNames(buildings)){
-    if (!line[buildings[i]]) break;
+    if (line[buildings[i]]===undefined) break;
     var object=Game.Objects[i];
-    var amount=TAS.n(line[buildings[i]])-object.amount;
-    if (amount>0) object.buy(amount);
-    else if (amount<0) object.sell(-amount);
-    if (isFinal&&TAS.n(line[buildings[i]])!=object.amount) TAS.warn("error","Failed to get wanted amount of "+i+".");
+    var amount=line[buildings[i]]-object.amount;
+    if (amount>0) buys.push([object,amount,line[buildings[i]]]);
+    else if (amount<0) sells.push([object,-amount,line[buildings[i]]]);
+  }
+  for (var i of sells)
+    i[0].sell(i[1]);
+  for (var i of buys){
+    i[0].buy(i[1]);
+    if (isFinal&&i[2]!=i[0].amount) TAS.warn("error","Failed to get wanted amount of "+i[0].name+".");
   }
   var upgrades=line["u"]?line["u"].split("\n").filter(Boolean):[];
   if (upgrades.length){
@@ -205,6 +219,7 @@ TAS.loop=function (lineN,isFinal){
     logArgs.push("color:lightgray");
     for (var i of upgrades){
       if (Game.Upgrades[i]){
+        if (!Game.Upgrades[i].unlocked) TAS.warn("warning",i+" hasn't been unlocked yet.");
         Game.Upgrades[i].buy();
         if (isFinal&&!Game.Upgrades[i].bought) TAS.warn("error","Failed to buy "+i+".");
       }else if (isFinal){
@@ -213,7 +228,7 @@ TAS.loop=function (lineN,isFinal){
     }
   }
   if (!Game.HasAchiev("Cookie-dunker")) Game.LeftBackground.canvas.height=100;
-  if (TAS.n(line["time (ms)"])>0){
+  if (line["time (ms)"]>0){
     if (TAS.time-Game.time<33) TAS.warn("error","Loop was run too early.");
     Game.Loop();
   }
@@ -235,14 +250,14 @@ TAS.loop=function (lineN,isFinal){
       i--;
     }
   }
-  if (isFinal&&Math.abs(Game.cookiesEarned-TAS.n(line["cookies baked"]))>0.001){
+  if (isFinal&&Math.abs(Game.cookiesEarned-line["cookies baked"])>0.001){
     logText+="\nCookies baked %c"+Game.cookiesEarned+"("+line["cookies baked"]+")%c";
-    if (Game.cookiesEarned<TAS.n(line["cookies baked"])){
+    if (Game.cookiesEarned<line["cookies baked"]){
       logArgs.push("color:red");
-      TAS.warn("warning","Earned "+(TAS.n(line["cookies baked"])-Game.cookiesEarned)+" less cookies than expected.");
+      TAS.warn("warning","Earned "+(line["cookies baked"]-Game.cookiesEarned)+" less cookies than expected.");
     }else{
       logArgs.push("color:yellowgreen");
-      TAS.warn("info","Earned "+(Game.cookiesEarned-TAS.n(line["cookies baked"]))+" more cookies than expected.");
+      TAS.warn("info","Earned "+(Game.cookiesEarned-line["cookies baked"])+" more cookies than expected.");
     }
     logArgs.push("color:lightgray");
   }else logText+="\nCookies baked "+Game.cookiesEarned+"("+line["cookies baked"]+")";
@@ -299,16 +314,16 @@ TAS.keypress=function (e){
   if (key=="r") TAS.start();
   if (key=="s") TAS.stop();
   if (key=="9") TAS.finalTime=0;
-  if (key=="0") TAS.finalTime=TAS.n(TAS.table[TAS.table.length-1]["time (ms)"]);
+  if (key=="0") TAS.finalTime=TAS.table[TAS.table.length-1]["time (ms)"];
   if (key=="7"){
     var lineN=0;
-    while (TAS.n(TAS.table[lineN]["time (ms)"])<TAS.finalTime) lineN++;
-    if (lineN>0) TAS.finalTime=TAS.n(TAS.table[lineN-1]["time (ms)"]);
+    while (TAS.table[lineN]["time (ms)"]<TAS.finalTime) lineN++;
+    if (lineN>0) TAS.finalTime=TAS.table[lineN-1]["time (ms)"];
   }
   if (key=="8"){
     var lineN=0;
-    while (TAS.n(TAS.table[lineN]["time (ms)"])<=TAS.finalTime) lineN++;
-    if (lineN<TAS.table.length-1) TAS.finalTime=TAS.n(TAS.table[lineN]["time (ms)"]);
+    while (TAS.table[lineN]["time (ms)"]<=TAS.finalTime) lineN++;
+    if (lineN<TAS.table.length-1) TAS.finalTime=TAS.table[lineN]["time (ms)"];
   }
   if (key=="i") TAS.finalTime=TAS.time-Game.startDate;
   if (key=="o") TAS.finalTime--;
