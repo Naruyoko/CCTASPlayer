@@ -58,6 +58,7 @@ TAS.setup=function (inputTable){
 }
 TAS.start=function (){
   if (!TAS.table) return;
+  Game.CloseNotes();
   Game.ShowMenu("options");
   Game.HardReset();
   l("promptOption0").click();
@@ -68,6 +69,7 @@ TAS.start=function (){
   Game.lastClick=-Infinity;
   Game.startDate=Game.time;
   Game.fullDate=Game.time;
+  TAS.lastBulkAccumulatedDelay=0;
   TAS.running=true;
   Game.prefs.notifs=1;
   Game.ShowMenu("stats");
@@ -137,12 +139,13 @@ TAS.frame=function (){
     console.log("Time "+(TAS.time-Game.startDate));
     console.log("Clicks "+Game.cookieClicks);
   }*/
+  var bulkLength=line["time (ms)"]-TAS.table[lineN-1]["time (ms)"]+TAS.lastBulkAccumulatedDelay;
   if (line["time (ms)"]==TAS.time-Game.startDate){
     TAS.loop(lineN,true);
+    TAS.lastBulkAccumulatedDelay=Game.accumulatedDelay;
   }else if (line["lag?"]=="n"){
     if ((TAS.time-Game.startDate-TAS.table[lineN-1]["time (ms)"])%33==0&&line["time (ms)"]-TAS.time+Game.startDate>=33) TAS.loop(lineN);
-  }else if (TAS.time-Game.time+Game.accumulatedDelay+1000/30>=5000){
-    var bulkLength=line["time (ms)"]-TAS.table[lineN-1]["time (ms)"];
+  }else if (bulkLength>=5000){
     var leastMaxLoopLength=bulkLength/Math.ceil(bulkLength/5000);
     if (TAS.time-Game.time+Game.accumulatedDelay>=leastMaxLoopLength) TAS.loop(lineN);
   }
@@ -298,11 +301,16 @@ TAS.tutorial=function (){
     "\np\tTAS.finalTime++"+
     "\nu\tUpdate stats"+
     "\nh\tShow this help"+
+    "\n%cSettings:%c"+
+    "\nTAS.particles - Enable/disable click particles"+
+    "\nTAS.speed - Playback speed"+
     ""
     ,"font-size:24px;color:white;"
     ,"font-size:18px"
     ,""
     ,"color:red"
+    ,""
+    ,"font-size:18px"
     ,""
     ,"font-size:18px"
     ,""
