@@ -145,8 +145,8 @@ TAS.frame=function (){
     TAS.lastBulkAccumulatedDelay=Game.accumulatedDelay;
   }else if (line["lag?"]=="n"){
     if ((TAS.time-Game.startDate-TAS.table[lineN-1]["time (ms)"])%33==0&&line["time (ms)"]-TAS.time+Game.startDate>=33) TAS.loop(lineN);
-  }else if (bulkLength>=5000){
-    var leastMaxLoopLength=bulkLength/Math.ceil(bulkLength/5000);
+  }else if (bulkLength>=5000+1000/30){
+    var leastMaxLoopLength=bulkLength/Math.ceil(bulkLength/(5000+1000/30));
     if (TAS.time-Game.time+Game.accumulatedDelay>=leastMaxLoopLength) TAS.loop(lineN);
   }
   if (TAS.time-Game.startDate==TAS.finalTime){
