@@ -47,7 +47,9 @@ TAS.setup=function (inputTable){
   TAS.now=TAS.now||Date.now;
   TAS.time=TAS.now();
   Date.now=function (){return TAS.time;};
-  TAS.finalTime=typeof TAS.finalTime=="number"?TAS.finalTime:TAS.table[TAS.table.length-1]["time (ms)"];
+  var oldTotalLength=TAS.totalLength;
+  TAS.totalLength=TAS.table[TAS.table.length-1]["time (ms)"];
+  TAS.finalTime=Math.min(typeof TAS.finalTime=="number"&&TAS.finalTime<oldTotalLength&&TAS.finalTime>=0?TAS.finalTime:TAS.totalLength,TAS.totalLength);
   if (!TAS.infol&&!l("TASinfo")){
     var versionNumber=l("versionNumber");
     TAS.infol=document.createElement("div");
@@ -134,17 +136,12 @@ TAS.frame=function (){
     Game.ClickCookie();
     Game.prefs.particles=Game.prefs.numbers=1;
   }
-  /*if (40536<=TAS.time-Game.startDate&&TAS.time-Game.startDate<=40688){
-    console.log("Cookies "+Game.cookies);
-    console.log("Time "+(TAS.time-Game.startDate));
-    console.log("Clicks "+Game.cookieClicks);
-  }*/
-  var bulkLength=line["time (ms)"]-TAS.table[lineN-1]["time (ms)"]+TAS.lastBulkAccumulatedDelay;
+  var bulkLength=line["time (ms)"]-(TAS.table[lineN-1]?TAS.table[lineN-1]["time (ms)"]:0)+TAS.lastBulkAccumulatedDelay;
   if (line["time (ms)"]==TAS.time-Game.startDate){
     TAS.loop(lineN,true);
     TAS.lastBulkAccumulatedDelay=Game.accumulatedDelay;
   }else if (line["lag?"]=="n"){
-    if ((TAS.time-Game.startDate-TAS.table[lineN-1]["time (ms)"])%33==0&&line["time (ms)"]-TAS.time+Game.startDate>=33) TAS.loop(lineN);
+    if ((TAS.time-Game.startDate-(TAS.table[lineN-1]?TAS.table[lineN-1]["time (ms)"]:0))%33==0&&line["time (ms)"]-TAS.time+Game.startDate>=33) TAS.loop(lineN);
   }else if (bulkLength>=5000+1000/30){
     var leastMaxLoopLength=bulkLength/Math.ceil(bulkLength/(5000+1000/30));
     if (TAS.time-Game.time+Game.accumulatedDelay>=leastMaxLoopLength) TAS.loop(lineN);
@@ -253,21 +250,23 @@ TAS.loop=function (lineN,isFinal){
       i--;
     }
   }
-  if (isFinal&&Math.abs(Game.cookiesEarned-line["cookies baked"])>0.001){
-    logText+="\nCookies baked %c"+Game.cookiesEarned+"("+line["cookies baked"]+")%c";
-    if (Game.cookiesEarned<line["cookies baked"]){
-      logArgs.push("color:red");
-      TAS.warn("warning","Earned "+(line["cookies baked"]-Game.cookiesEarned)+" less cookies than expected.");
-    }else{
-      logArgs.push("color:yellowgreen");
-      TAS.warn("info","Earned "+(Game.cookiesEarned-line["cookies baked"])+" more cookies than expected.");
-    }
-    logArgs.push("color:lightgray");
-  }else logText+="\nCookies baked "+Game.cookiesEarned+"("+line["cookies baked"]+")";
-  logText+="\nadelayl "+Game.accumulatedDelay+"("+line["adelayl"]+")"+
-    "\n-----------";
-  if (isFinal) console.log(logText,...logArgs);
-  if (isFinal&&Math.abs(line["adelayl"]-Game.accumulatedDelay)>0.1) TAS.warn("warning","Game.accumulatedDelay was different from what is given.");
+  if (isFinal){ //log stuff
+    if (line["cookies baked"]!==undefined&&Math.abs(Game.cookiesEarned-line["cookies baked"])>0.001){
+      logText+="\nCookies baked %c"+Game.cookiesEarned+"("+line["cookies baked"]+")%c";
+      if (Game.cookiesEarned<line["cookies baked"]){
+        logArgs.push("color:red");
+        TAS.warn("warning","Earned "+(line["cookies baked"]-Game.cookiesEarned)+" less cookies than expected.");
+      }else{
+        logArgs.push("color:yellowgreen");
+        TAS.warn("info","Earned "+(Game.cookiesEarned-line["cookies baked"])+" more cookies than expected.");
+      }
+      logArgs.push("color:lightgray");
+    }else logText+="\nCookies baked "+Game.cookiesEarned+(line["cookies baked"]===undefined?"":"("+line["cookies baked"]+")");
+    logText+="\nadelayl "+Game.accumulatedDelay+(line["adelayl"]===undefined?"":"("+line["adelayl"]+")")+
+      "\n-----------";
+    console.log(logText,...logArgs);
+    if (line["adelayl"]!==undefined&&Math.abs(line["adelayl"]-Game.accumulatedDelay)>0.1) TAS.warn("warning","Game.accumulatedDelay was different from what was expected.");
+  }
 }
 TAS.updateInfo=function (){
   var frameTime=TAS.time-Game.time;
