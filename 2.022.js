@@ -6,10 +6,12 @@ TAS.particles=1;
 TAS.fancy=1;
 TAS.n=function (n){
   if (typeof n=="number") return n;
-  if (typeof n=="string") return +n.replace(/,/g,"");
+  else if (typeof n=="string") return +(n.replace(/,/g,""));
+  else throw Error("Invalid type "+typeof n);
 }
-TAS.parseTable=function (inputTable){
-  var lines=inputTable.split(/\r?\n(?=\d)/);
+TAS.parseTable=function (input){
+  if (typeof input!="string") throw Error("Invalid type "+typeof input);
+  var lines=input.split(/\r?\n(?=\d)/);
   var table=[];
   var headings=lines[0].split(/\t/);
   if (headings.includes("utilcodebefore")||headings.includes("utilcodeafter")) alert("Notice: This strategy contains JavaScript code. Please make sure that it is valid and is safe.");
@@ -28,6 +30,7 @@ TAS.parseTable=function (inputTable){
 }
 TAS.setup=function (inputTable){
   TAS.table=typeof inputTable=="string"?TAS.parseTable(inputTable):inputTable;
+  if (!(inputTable instanceof Array)) throw Error("Input table must be an Array");
   TAS.settings={};
   if (TAS.table[0]["time (ms)"]==-1&&TAS.table[0]["utilcodebefore"]){
     for (var i of TAS.table[0]["utilcodebefore"].split(",")){
@@ -357,7 +360,7 @@ TAS.loop=function (lineN,isFinal){
       }
     }
   }
-  Game.LeftBackground.canvas.height=Game.LeftBackground.canvas.parentNode.offsetHeight;
+  if (Game.LeftBackground.canvas.height!=Game.LeftBackground.canvas.parentNode.offsetHeight) Game.LeftBackground.canvas.height=Game.LeftBackground.canvas.parentNode.offsetHeight;
   if (isFinal&&line["GC buff"]){
     if (line["GC buff"]!="cookie storm drop"){
       logText+="\nSpawned golden cookie - %c"+line["GC buff"]+"%c";
@@ -467,6 +470,7 @@ TAS.keypress=function (e){
   if (key=="m") TAS.offsetTime+=prompt("Offset time?");
   if (key=="u") Game.UpdateMenu();
   if (key=="h") TAS.tutorial();
+  if (key=="f") navigator.clipboard.readText().then(TAS.setup);
 }
 window.addEventListener("keypress",TAS.keypress);
 
